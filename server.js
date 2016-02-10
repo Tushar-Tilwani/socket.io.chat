@@ -4,19 +4,27 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
 app.get('/', function(req, res){
-  res.sendfile('index.html');
+  res.sendfile('home.html');
 });
 
 app.use('/js', express.static('public'));
-
+var clients = {};
 io.on('connection', function(socket){
   console.log('a user connected');
   socket.on('disconnect', function(){
-    console.log('user disconnected');
+    console.log('user disconnected'+socket.id);
   });
    socket.on('chat message', function(msg){
-    //console.log('message: ' + msg);
-    io.emit('chat message', msg);
+    var jsonToSend = {
+      user : clients[socket.id],
+      message : msg
+    }
+    io.emit('chat message', JSON.stringify(jsonToSend) );
+  });
+    socket.on('uname', function(uname){
+    console.log('message: ' + uname);
+    clients[socket.id] = uname;
+    io.emit('uname', 'User '+ uname + ' has logged in!');
   });
 });
 
