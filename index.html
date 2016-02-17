@@ -1,35 +1,195 @@
-<!doctype html>
-<html>
-<head>
-  <title>Socket.IO chat</title>
-  <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font: 13px Helvetica, Arial; }
-  form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
-  form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
-  form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-  #messages { list-style-type: none; margin: 0; padding: 0; }
-  #messages li { padding: 5px 10px; }
-  #messages li:nth-child(odd) { background: #eee; }
-  </style>
-</head>
-<body>
-  <ul id="messages"></ul>
-  <form action="#">
-    <input id="m" autocomplete="off" /><button>Send</button>
-  </form>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
-  <script>
-  var socket = io();
-  $('form').submit(function(){
-    socket.emit('chat message', $('#m').val());
-    $('#m').val('');
-    return false;
-  });
-  socket.on('chat message', function(msg){
-    $('#messages').append($('<li>').text(msg));
-  });
+  <!doctype html>
+  <html>
+  <head>
+    <title>Socket.IO chat</title>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+    <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font: 13px Helvetica, Arial; }
+
+    div#register {
+      position: absolute;
+      top:50px;
+      left: 100px;
+    }
+
+    div#register input {
+      width: 400px;
+      height: 50px;
+      font-size: 2rem;
+    }
+    div#register button {
+      height: 50px;
+      width: 100px;
+    }
+
+
+    #main {
+      display: none;
+    }
+    ul#userList {
+      padding: 10px;
+      font-size: 2rem;
+    }
+    ul#userList a {
+      display: block;
+      position: absolute;
+      top :0;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      text-decoration: none;
+    }
+    ul#chat_windows {
+      display: block ;
+      height: 300px;
+      position: absolute;
+      bottom: 0;
+      right: 20px;
+      overflow: scroll;
+    }
+
+    ul#chat_windows li.chat {
+      list-style: none;
+      float:  right;
+      display: block;
+      border: 1px solid black;
+      height: 99%;
+      padding: 0;
+    }
+
+    li.chat form { background: #000;
+    padding: 3px;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    height: 20%;
+    display: block;
+    margin: 0;
+    position: absolute;
+    }
+    li.chat form input { border: 0; padding: 10px; margin-right: .5%; float: left; height: 100%;width: 79% }
+    li.chat form button {height: 100%;width: 20%;float: right;}
+
+    .messages { list-style-type: none; margin: 0; padding: 0; bottom:20%;width: 100%;overflow: scroll;position: absolute;}
+    .messages li { padding: 5px 10px; width: 100%:; }
+    .messages li:nth-child(odd) { background: #eee; }
+    .messages li span {
+      color: red;
+    }
+    #result {
+      position: absolute;
+      top:10px;
+      right:10px;
+    }
+    </style> 
+  </head>
+  <body>
+    <div id="register">
+      <form action="#" id="registerForm">
+       <label>Username:</label> <input id="uname" autocomplete="off" /><button>Submit</button>
+     </form>
+   </div>
+   <div id="main">
+    <ul id="userList" class="list-group col-md-6"></ul>
+     <ul id="chat_windows" class="col-md-12"></ul>
+   </div>
+   
+   <script src="/socket.io/socket.io.js"></script>
+   <script>
+   (function(){
+    var socket = io();
+    var chatProperties = {};
+    var chatDestIds = [];
+
+    //1
+    socket.on('connId',function(id){
+      chatProperties.meId = id;
+    });
+
+    //2
+    socket.on('uname', function(list){
+      var clist = JSON.parse(list);
+      $('#userList').html('');
+      for (var id in clist){
+        if(id != chatProperties.meId){
+          $('#userList').append("<li class='list-group-item'><a href='#' class='' data-id="+id+">"+clist[id]+"</a></li>");
+        }
+      }
+    });
+
+    //3
+    socket.on('chatReq',function(fromId){
+      chatProperties.chatDestId = fromId;
+      createWindow(chatProperties.chatDestId);
+    });
+
+    //4
+    socket.on('chat message', function(msg){
+      var jsonRecived = JSON.parse(msg);
+      $('#'+ chatProperties.currentWindow+' .messages').append($('<li>').html('<span>'+jsonRecived.user+'</span>:'+jsonRecived.message));
+    });
+
+
+    //1
+    $('form#registerForm').submit(function(){
+      var $uname = $('#uname');
+      socket.emit('uname', $uname.val());
+      $uname.val('');
+      $("#register").hide();
+      $("#main").fadeIn();
+      return false;
+    });
+
+    //2
+    $("#userList").on('click',function(){
+      chatProperties.chatDestId = $(event.target).attr('data-id');
+      createWindow(chatProperties.chatDestId);
+      socket.emit('chatDest',  chatProperties.chatDestId);
+      $("#chat").fadeIn();
+    });
+
+    //3
+    $(document).on("submit", "form.chatForm", function(event){
+      //alert('hi');
+      var $msgInput =  $('#'+ chatProperties.currentWindow+' .m');
+      var jsonToSend = {
+        to: chatProperties.chatDestId,
+        from: chatProperties.meId,
+        msg: $msgInput.val()
+      };
+      socket.emit('chat message', JSON.stringify(jsonToSend));
+      $msgInput.val('');
+      return false;
+    });
+
+    $(document).on("click", "li.chat", function(event){
+      /*var id = $(this).attr('id');
+      alert(id);*/
+      chatProperties.currentWindow =  $(this).attr('id'); 
+      chatProperties.chatDestId = $(this).attr('data-destId');
+    });
+
+
+    function createWindow(chatDestId){
+      var i = chatDestIds.indexOf(chatDestId);
+      if(i < 0) {
+        i = chatDestIds.push(chatDestId);
+        var id = 'chat'+i;
+        chatProperties.currentWindow =  id; 
+        $("ul#chat_windows").append('<li id="'+ id + '" class="chat col-md-3" data-destId='+ chatDestId +'> <ul class="messages"></ul> <form action="#" class="chatForm" > <input class="m" autocomplete="off" /><button class="sendMsg btn btn-primary">Send</button> </form> </li>');
+      }
+    }
+
+  })();
   </script>
 
 </body>
